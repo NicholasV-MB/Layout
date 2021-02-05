@@ -21,6 +21,7 @@
 		<script src="lib/stats.min.js"></script>
 		<script src="lib/OrbitControls.js"></script>
 		<script src="lib/dat.gui.min.js"></script>
+		<script src="lib/GLTFExporter.js"></script>
 	</head>
 	<body>
 		<script type='text/javascript'>
@@ -37,6 +38,7 @@
 		var corrente_selected_material = new THREE.MeshBasicMaterial( {color: 0xf5ea92} );
 		var floor;
 		var start_pos_f, end_pos_f, parameters_wall_folder;
+		var duplication_mode=false;
 		var width=100;
 		var height=100;
 		var settings = {
@@ -55,7 +57,18 @@
 			
 			CampateCL : 1,
 			AltezzaSpalleCL: 10,
-			LivelliCL:2
+			LivelliCL:2,
+			Save: function(){
+				//var exporter = new THREE.SceneExporter();
+				//console.log(JSON.stringify(exporter.parse(scene)));
+				var exporter = new THREE.GLTFExporter();
+
+				// Parse the input and generate the glTF output
+				exporter.parse( scene, function ( gltf ) {
+					console.log( JSON.stringify(gltf) );
+					//downloadJSON( gltf );
+				}, {trs: true} );
+			}
 		}
 		var edit_PP_train_folder, edit_CL_train_folder;
 		
@@ -78,7 +91,7 @@
 		buildGui();
 		Update();
 		
-		// Funzione per modificare la visualizzazzione quando la finestra viene ridimensionata
+		// Funzione per modificare la visualizzazione quando la finestra viene ridimensionata
 		function onResize() {
   			renderer.setSize( window.innerWidth, window.innerHeight );
   			camera.aspect = ( window.innerWidth / window.innerHeight );
@@ -110,6 +123,7 @@
 			hemiLight.color.setHSL( 0.6, 1, 0.6 );
 			hemiLight.groundColor.setHSL( 0.095, 1, 0.75 );
 			hemiLight.position.set( 0, 500, 0 );
+			hemiLight.name = "Light";
 			scene.add( hemiLight );
 
 			// statistiche fps in alto a sinistra
@@ -121,9 +135,9 @@
 			// chiama onResize() quando viene modificata la dimensione della pagina
 			window.addEventListener( 'resize', onResize, false );
 			
-			
+			/*
 			var axesHelper = new THREE.AxesHelper( 5 );
-			scene.add( axesHelper );
+			scene.add( axesHelper );*/
 			camera.position.set(50,75,50);
 			controls.target.set(50, 0, 50);
 			controls.update();
@@ -305,8 +319,8 @@
 			edit_PP_train_folder = train_portapallet.addFolder("Edit PortaPallet Train");
 			edit_PP_train_folder.__ul.setAttribute("style", "display: none");
 			
-			train_cantilever= trains_folder.addFolder("Treno Cantilever");
-			var newT_CL = train_cantilever.addFolder("Add New Cantilever Train");
+			train_cantilever= trains_folder.addFolder("Treno CantiLever");
+			var newT_CL = train_cantilever.addFolder("Add New CantiLever Train");
 			
 			newT_CL.add(settings, "AltezzaSpalleCL").min(5).step(1).name("Altezza Spalle");
 			newT_CL.add(settings, "CampateCL").min(1).step(1).name("Campate");
@@ -316,6 +330,8 @@
 			
 			edit_CL_train_folder = train_cantilever.addFolder("Edit CantiLever Train");
 			edit_CL_train_folder.__ul.setAttribute("style", "display: none");
+			
+			gui.add(settings, "Save");
 		}
 		
 		function get_walls(){
@@ -447,7 +463,7 @@
 
 		// pressione click mouse
 		document.addEventListener("pointerdown", () => {
-			if (draw_walls_mode==true || draw_train_pp_mode==true || draw_train_cl_mode==true){
+			if (draw_walls_mode==true || draw_train_pp_mode==true || draw_train_cl_mode==true || duplication_mode==true){
 				var intersects = raycaster.intersectObjects([floor]);
 				if (intersects.length > 0) {
 					controls.enabled = false;
@@ -520,7 +536,7 @@
 
 			if (intersects.length > 0) {
 				if(train_selected!==undefined){
-					console.log(train_selected);
+					//console.log(train_selected);
 					if(train_selected.name==treno_pp_name){
 						set_colors_deselected_pp(train_selected);
 					} else if (train_selected.name==treno_cl_name){
@@ -539,6 +555,7 @@
 					edit_CL_train_folder.__ul.setAttribute("style", "display: none");
 					clear_folder(edit_PP_train_folder);
 					set_colors_selected_pp(train_selected);
+					train_portapallet.__folders["Add New PortaPallet Train"].close();
 							
 					var s_pos_pp = edit_PP_train_folder.addFolder("Start Position");
 					var e_pos_pp = edit_PP_train_folder.addFolder("End Position");
@@ -569,6 +586,9 @@
 							edit_PP_train_folder.__ul.setAttribute("style", "display: none");
 							set_colors_deselected_pp(train_selected);
 							train_selected=undefined;
+						},
+						"Duplica": function(){
+							duplication_mode=true;
 						}
 					}
 					edit_PP_train_folder.add(t_settings, "hSpalle").min(5).step(1).name("Altezza Spalle").onChange(function(newVal){
@@ -587,13 +607,16 @@
 							
 					});
 					edit_PP_train_folder.add(t_settings, "Deseleziona");
+					edit_PP_train_folder.add(t_settings, "Duplica");
 					edit_PP_train_folder.add(t_settings, "Elimina");
+					edit_PP_train_folder.open();
 							
 				} else if(train_selected.name==treno_cl_name) {
 					edit_CL_train_folder.__ul.setAttribute("style", "display: ");
 					edit_PP_train_folder.__ul.setAttribute("style", "display: none");
 					clear_folder(edit_CL_train_folder);
 					set_colors_selected_cl(train_selected);
+					train_cantilever.__folders["Add New CantiLever Train"].close();
 					var s_pos_cl = edit_CL_train_folder.addFolder("Start Position");
 					var e_pos_cl = edit_CL_train_folder.addFolder("End Position");
 					s_pos_cl.add(train_selected.start_pos, "x").min(0).max(width).onChange(function(newVal){
@@ -641,6 +664,7 @@
 					});
 					edit_CL_train_folder.add(t_settings, "Deseleziona");
 					edit_CL_train_folder.add(t_settings, "Elimina");
+					edit_CL_train_folder.open();
 				}
 			}
 			
@@ -655,7 +679,20 @@
 					drawTrainPP(settings["CampatePP"], settings["AltezzaSpallePP"], settings["LivelliPP"], 0);
 				} else if (draw_train_cl_mode==true){
 					drawTrainCL(settings["CampateCL"], settings["AltezzaSpalleCL"], settings["LivelliCL"], 0);
+				} 
+			} else if(start_pos!==undefined && duplication_mode==true){
+				end_pos = {
+					x: (train_selected.end_pos.x+start_pos.x-train_selected.start_pos.x), 
+					y: start_pos.y, 
+					z: (train_selected.end_pos.z+start_pos.z-train_selected.start_pos.z)
 				}
+				if(train_selected.name==treno_pp_name){
+					drawTrainPP(train_selected.campate, train_selected.altezzaSpalle, train_selected.livelli, train_selected.rotazione);
+				} else if(train_selected.name==treno_cl_name){
+					drawTrainCL(train_selected.campate, train_selected.altezzaSpalle, train_selected.livelli, train_selected.rotazione);
+				}
+				duplication_mode=false;
+				controls.enabled=true;
 			}
 		} );
 		
@@ -772,6 +809,7 @@
 			wall.start_pos = start_pos;
 			wall.end_pos = end_pos;
 			scene.add( wall );
+			wall.updateMatrix();
 			start_pos=undefined;
 			end_pos=undefined;
 			get_walls();
